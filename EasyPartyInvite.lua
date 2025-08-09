@@ -19,6 +19,9 @@ local EPI_PendingInvite = nil
 local EPI_PlayerName, EPI_PlayerRealm = UnitName("player")
 local EPI_PlayerFullName = EPI_PlayerRealm and EPI_PlayerRealm ~= "" and EPI_PlayerName .. "-" .. EPI_PlayerRealm or EPI_PlayerName
 
+-- Forward declarations for options panel and category
+local EPI_Options, EPI_SettingsCategory
+
 -- Utility: find a unitID by player name
 local function EPI_FindUnitByName(EPI_TargetName)
     local EPI_Units = {"target", "focus", "mouseover"}
@@ -178,14 +181,23 @@ EPI_MinimapIcon:SetSize(20, 20)
 EPI_MinimapIcon:SetPoint("CENTER")
 EPI_MinimapIcon:SetDesaturated(true)
 
-EPI_MinimapButton:SetScript("OnClick", function()
-    EPI_Addon:Toggle()
+EPI_MinimapButton:SetScript("OnClick", function(_, button)
+    if button == "RightButton" then
+        if Settings and Settings.OpenToCategory then
+            Settings.OpenToCategory(EPI_SettingsCategory and EPI_SettingsCategory.ID or "EasyPartyInvite")
+        elseif InterfaceOptionsFrame_OpenToCategory then
+            InterfaceOptionsFrame_OpenToCategory(EPI_Options)
+        end
+    else
+        EPI_Addon:Toggle()
+    end
 end)
 
 EPI_MinimapButton:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText("EasyPartyInvite")
-    GameTooltip:AddLine("Click to toggle auto-invite mode", 1, 1, 1)
+    GameTooltip:AddLine("Left-click to toggle auto-invite mode", 1, 1, 1)
+    GameTooltip:AddLine("Right-click to open settings", 1, 1, 1)
     GameTooltip:Show()
 end)
 
@@ -194,7 +206,7 @@ EPI_MinimapButton:SetScript("OnLeave", function()
 end)
 
 -- Options panel
-local EPI_Options = CreateFrame("Frame", "EPI_Options")
+EPI_Options = CreateFrame("Frame", "EPI_Options")
 EPI_Options.name = "EasyPartyInvite"
 
 local EPI_WhisperCheck = CreateFrame("CheckButton", "EPI_WhisperCheck", EPI_Options, "InterfaceOptionsCheckButtonTemplate")
@@ -232,7 +244,13 @@ EPI_WhisperCheck:SetScript("OnClick", function(self)
 end)
 
 EPI_UpdateMessageInput()
-InterfaceOptions_AddCategory(EPI_Options)
+if Settings and Settings.RegisterAddOnCategory then
+    EPI_SettingsCategory = Settings.RegisterCanvasLayoutCategory(EPI_Options, EPI_Options.name)
+    EPI_SettingsCategory.ID = EPI_Options.name
+    Settings.RegisterAddOnCategory(EPI_SettingsCategory)
+else
+    InterfaceOptions_AddCategory(EPI_Options)
+end
 
 -- Chat commands
 SLASH_EPI1 = "/epi"

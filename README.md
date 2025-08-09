@@ -9,6 +9,7 @@
 - Automatically detects nearby players of your faction through combat, targeting, or mouseover and prompts an invitation
 - Toggle auto-invite via the minimap button or `/npi` slash commands
 - Optional custom whisper message after sending an invite
+- Prevents overfilling parties by considering pending invitations before sending new ones
 - Low memory usage
 
 ---
@@ -30,7 +31,7 @@ Enable auto-invite mode with the minimap button or `/npi toggle`. When active, t
 ## Limitations
 
 - Only invites players from your faction
-- Requires available party slots (maximum five players)
+- Requires available party slots (maximum five players, pending invites counted)
 - Players must be encountered through combat, mouseover, or target changes to be detected
 
 ---

@@ -9,6 +9,7 @@ NPI_Addon.frame = NPI_Frame
 
 NPI_Addon.invited = {}
 NPI_Addon.ignored = {}
+NPI_Addon.pendingInvites = {}
 NPI_Addon.enabled = false
 NPI_Settings = NPI_Settings or {}
 if NPI_Settings.whisperEnabled == nil then
@@ -43,9 +44,22 @@ local function NPI_StartInvite(NPI_TargetName)
     StaticPopup_Show("NPI_CONFIRM_INVITE", NPI_TargetName, nil, {name = NPI_TargetName})
 end
 
+local function NPI_GetPendingInviteCount()
+    local NPI_Count = 0
+    for NPI_Name in pairs(NPI_Addon.pendingInvites) do
+        if NPI_IsPlayerInGroup(NPI_Name) then
+            NPI_Addon.pendingInvites[NPI_Name] = nil
+        else
+            NPI_Count = NPI_Count + 1
+        end
+    end
+    return NPI_Count
+end
+
 local function NPI_IsGroupFull()
     local NPI_GroupSize = GetNumGroupMembers()
     if NPI_GroupSize == 0 then NPI_GroupSize = 1 end
+    NPI_GroupSize = NPI_GroupSize + NPI_GetPendingInviteCount()
     return NPI_GroupSize >= 5
 end
 
@@ -92,6 +106,7 @@ function NPI_Addon:Enable()
             NPI_Frame:RegisterEvent("PLAYER_TARGET_CHANGED")
         end
         NPI_Frame:RegisterEvent("CHAT_MSG_SYSTEM")
+        NPI_Frame:RegisterEvent("GROUP_ROSTER_UPDATE")
         if self.minimapButton and self.minimapButton.icon then
             self.minimapButton.icon:SetDesaturated(false)
         end
@@ -108,6 +123,7 @@ function NPI_Addon:Disable()
         NPI_Frame:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
         NPI_Frame:UnregisterEvent("PLAYER_TARGET_CHANGED")
         NPI_Frame:UnregisterEvent("CHAT_MSG_SYSTEM")
+        NPI_Frame:UnregisterEvent("GROUP_ROSTER_UPDATE")
         if self.minimapButton and self.minimapButton.icon then
             self.minimapButton.icon:SetDesaturated(true)
         end
@@ -132,14 +148,20 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
     button1 = YES,
     button2 = NO,
     button3 = "Disable Addon",
-    OnAccept = function(self, data)
-        InviteUnit(data.name)
-        NPI_Addon.invited[data.name] = true
-        DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Invited " .. data.name .. ".")
-        if NPI_Settings.whisperEnabled and NPI_Settings.whisperMessage ~= "" then
-            NPI_PendingWhisper = data.name
-            C_Timer.After(1, function()
-                if NPI_PendingWhisper == data.name then
+      OnAccept = function(self, data)
+          InviteUnit(data.name)
+          NPI_Addon.invited[data.name] = true
+          NPI_Addon.pendingInvites[data.name] = true
+          C_Timer.After(60, function()
+              if not NPI_IsPlayerInGroup(data.name) then
+                  NPI_Addon.pendingInvites[data.name] = nil
+              end
+          end)
+          DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Invited " .. data.name .. ".")
+          if NPI_Settings.whisperEnabled and NPI_Settings.whisperMessage ~= "" then
+              NPI_PendingWhisper = data.name
+              C_Timer.After(1, function()
+                  if NPI_PendingWhisper == data.name then
                     SendChatMessage("NearbyPartyInvite: " .. NPI_Settings.whisperMessage, "WHISPER", nil, data.name)
                     NPI_PendingWhisper = nil
                 end
@@ -147,13 +169,13 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
         else
             NPI_PendingWhisper = nil
         end
-        NPI_PendingInvite = nil
-    end,
+          NPI_PendingInvite = nil
+      end,
     OnCancel = function(_, data)
         NPI_Addon.ignored[data.name] = true
         DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Ignored " .. data.name .. ".")
-        NPI_PendingInvite = nil
-    end,
+      NPI_PendingInvite = nil
+  end,
     OnAlt = function()
         NPI_Addon:Disable()
         DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Auto-invite disabled.")
@@ -229,6 +251,20 @@ function NPI_Frame:CHAT_MSG_SYSTEM(msg)
     -- ERR_ALREADY_IN_GROUP_S is a localized global provided by the WoW client
     if NPI_PendingWhisper and msg == ERR_ALREADY_IN_GROUP_S:format(NPI_PendingWhisper) then
         NPI_PendingWhisper = nil
+    end
+    for NPI_Name in pairs(NPI_Addon.pendingInvites) do
+        if msg == ERR_DECLINE_GROUP_S:format(NPI_Name) or msg == ERR_ALREADY_IN_GROUP_S:format(NPI_Name) then
+            NPI_Addon.pendingInvites[NPI_Name] = nil
+            break
+        end
+    end
+end
+
+function NPI_Frame:GROUP_ROSTER_UPDATE()
+    for NPI_Name in pairs(NPI_Addon.pendingInvites) do
+        if NPI_IsPlayerInGroup(NPI_Name) then
+            NPI_Addon.pendingInvites[NPI_Name] = nil
+        end
     end
 end
 

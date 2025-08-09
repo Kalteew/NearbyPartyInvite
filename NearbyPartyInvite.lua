@@ -113,6 +113,7 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
     text = "Invite %s to your group?",
     button1 = YES,
     button2 = NO,
+    button3 = "Disable Addon",
     OnAccept = function(self, data)
         InviteUnit(data.name)
         NPI_Addon.invited[data.name] = true
@@ -125,6 +126,11 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
     OnCancel = function(_, data)
         NPI_Addon.ignored[data.name] = true
         DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Ignored " .. data.name .. ".")
+        NPI_PendingInvite = nil
+    end,
+    OnAlt = function()
+        NPI_Addon:Disable()
+        DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Auto-invite disabled.")
         NPI_PendingInvite = nil
     end,
     timeout = 0,

@@ -10,6 +10,11 @@ EPI_Addon.frame = EPI_Frame
 EPI_Addon.invited = {}
 EPI_Addon.ignored = {}
 EPI_Addon.enabled = false
+EPI_Settings = EPI_Settings or {}
+if EPI_Settings.whisperEnabled == nil then
+    EPI_Settings.whisperEnabled = false
+end
+EPI_Settings.whisperMessage = EPI_Settings.whisperMessage or ""
 local EPI_PendingInvite = nil
 local EPI_PlayerName, EPI_PlayerRealm = UnitName("player")
 local EPI_PlayerFullName = EPI_PlayerRealm and EPI_PlayerRealm ~= "" and EPI_PlayerName .. "-" .. EPI_PlayerRealm or EPI_PlayerName
@@ -102,6 +107,9 @@ StaticPopupDialogs["EPI_CONFIRM_INVITE"] = {
         InviteUnit(data.name)
         EPI_Addon.invited[data.name] = true
         DEFAULT_CHAT_FRAME:AddMessage("EasyPartyInvite: Invited " .. data.name .. ".")
+        if EPI_Settings.whisperEnabled and EPI_Settings.whisperMessage ~= "" then
+            SendChatMessage("EasyPartyInvite: " .. EPI_Settings.whisperMessage, "WHISPER", nil, data.name)
+        end
         EPI_PendingInvite = nil
     end,
     OnCancel = function(_, data)
@@ -185,16 +193,70 @@ EPI_MinimapButton:SetScript("OnLeave", function()
     GameTooltip:Hide()
 end)
 
+-- Options panel
+local EPI_Options = CreateFrame("Frame", "EPI_Options")
+EPI_Options.name = "EasyPartyInvite"
+
+local EPI_WhisperCheck = CreateFrame("CheckButton", "EPI_WhisperCheck", EPI_Options, "InterfaceOptionsCheckButtonTemplate")
+EPI_WhisperCheck:SetPoint("TOPLEFT", 16, -16)
+EPI_WhisperCheck.Text:SetText("Enable whisper message")
+EPI_WhisperCheck:SetChecked(EPI_Settings.whisperEnabled)
+
+local EPI_MessageInput = CreateFrame("EditBox", "EPI_MessageInput", EPI_Options, "InputBoxTemplate")
+EPI_MessageInput:SetSize(220, 25)
+EPI_MessageInput:SetAutoFocus(false)
+EPI_MessageInput:SetPoint("TOPLEFT", EPI_WhisperCheck, "BOTTOMLEFT", 30, -8)
+EPI_MessageInput:SetText(EPI_Settings.whisperMessage)
+EPI_MessageInput:SetScript("OnEnterPressed", function(self)
+    EPI_Settings.whisperMessage = self:GetText()
+    self:ClearFocus()
+end)
+EPI_MessageInput:SetScript("OnEscapePressed", function(self)
+    self:ClearFocus()
+end)
+EPI_MessageInput:SetScript("OnEditFocusLost", function(self)
+    EPI_Settings.whisperMessage = self:GetText()
+end)
+
+local function EPI_UpdateMessageInput()
+    if EPI_WhisperCheck:GetChecked() then
+        EPI_MessageInput:Show()
+    else
+        EPI_MessageInput:Hide()
+    end
+end
+
+EPI_WhisperCheck:SetScript("OnClick", function(self)
+    EPI_Settings.whisperEnabled = self:GetChecked()
+    EPI_UpdateMessageInput()
+end)
+
+EPI_UpdateMessageInput()
+InterfaceOptions_AddCategory(EPI_Options)
+
 -- Chat commands
 SLASH_EPI1 = "/epi"
 SlashCmdList["EPI"] = function(EPI_Command)
-    EPI_Command = string.lower(EPI_Command or "")
-    if EPI_Command == "toggle" then
+    local EPI_Cmd, EPI_Rest = (EPI_Command or ""):match("^(%S*)%s*(.-)$")
+    EPI_Cmd = string.lower(EPI_Cmd)
+    if EPI_Cmd == "toggle" then
         EPI_Addon:Toggle()
-    elseif EPI_Command == "status" then
+    elseif EPI_Cmd == "status" then
         DEFAULT_CHAT_FRAME:AddMessage("EasyPartyInvite: Auto-invite is " .. (EPI_Addon.enabled and "enabled" or "disabled") .. ".")
+    elseif EPI_Cmd == "message" then
+        if EPI_Rest == "" then
+            if EPI_Settings.whisperEnabled and EPI_Settings.whisperMessage ~= "" then
+                DEFAULT_CHAT_FRAME:AddMessage("EasyPartyInvite: Current whisper message: " .. EPI_Settings.whisperMessage)
+            else
+                DEFAULT_CHAT_FRAME:AddMessage("EasyPartyInvite: No whisper message set.")
+            end
+        else
+            EPI_Settings.whisperMessage = EPI_Rest
+            EPI_Settings.whisperEnabled = true
+            DEFAULT_CHAT_FRAME:AddMessage("EasyPartyInvite: Whisper message set to '" .. EPI_Rest .. "'.")
+        end
     else
-        DEFAULT_CHAT_FRAME:AddMessage("EasyPartyInvite commands: /epi toggle, /epi status")
+        DEFAULT_CHAT_FRAME:AddMessage("EasyPartyInvite commands: /epi toggle, /epi status, /epi message <text>")
     end
 end
 

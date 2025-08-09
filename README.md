@@ -10,4 +10,5 @@ EasyPartyInvite is a lightweight World of Warcraft addon for Mists of Pandaria C
 ## Usage
 - Click the minimap button or type `/epi toggle` to enable or disable auto-invite mode.
 - Use `/epi status` to check whether auto-invite mode is currently enabled.
+ - Enable a custom whisper in the addon options or set it with `/epi message <text>`. The message will be sent as `EasyPartyInvite: <text>` when inviting a player via the popup.
 

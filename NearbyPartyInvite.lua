@@ -15,33 +15,41 @@ if NPI_Settings.whisperEnabled == nil then
     NPI_Settings.whisperEnabled = false
 end
 NPI_Settings.whisperMessage = NPI_Settings.whisperMessage or ""
+if NPI_Settings.triggerMouseover == nil then
+    NPI_Settings.triggerMouseover = true
+end
+if NPI_Settings.triggerTarget == nil then
+    NPI_Settings.triggerTarget = true
+end
 local NPI_PendingInvite = nil
 local NPI_PlayerName, NPI_PlayerRealm = UnitName("player")
 local NPI_PlayerFullName = NPI_PlayerRealm and NPI_PlayerRealm ~= "" and NPI_PlayerName .. "-" .. NPI_PlayerRealm or NPI_PlayerName
+local NPI_PlayerFaction = UnitFactionGroup("player")
+local NPI_PendingWhisper = nil
+local NPI_GroupFullWarned = false
 
 -- Forward declarations for options panel and category
 local NPI_Options, NPI_SettingsCategory
-local NPI_EnableCheck, NPI_WhisperCheck, NPI_MessageInput
+local NPI_EnableCheck, NPI_WhisperCheck, NPI_MessageInput, NPI_MouseoverCheck, NPI_TargetCheck
+local NPI_IsPlayerInGroup
 
--- Utility: find a unitID by player name
-local function NPI_FindUnitByName(NPI_TargetName)
-    local NPI_Units = {"target", "focus", "mouseover"}
-    for NPI_Index = 1, 40 do
-        NPI_Units[#NPI_Units + 1] = "nameplate" .. NPI_Index
-    end
-    for _, NPI_Unit in ipairs(NPI_Units) do
-        if UnitExists(NPI_Unit) then
-            local NPI_UnitName, NPI_UnitRealm = UnitName(NPI_Unit)
-            local NPI_FullName = NPI_UnitRealm and NPI_UnitRealm ~= "" and NPI_UnitName .. "-" .. NPI_UnitRealm or NPI_UnitName
-            if NPI_FullName == NPI_TargetName then
-                return NPI_Unit
-            end
-        end
-    end
-    return nil
+--
+-- Attempt to invite a player by name after basic checks
+local function NPI_StartInvite(NPI_TargetName)
+    if NPI_Addon.invited[NPI_TargetName] or NPI_Addon.ignored[NPI_TargetName] then return end
+    if NPI_IsPlayerInGroup(NPI_TargetName) then return end
+
+    NPI_PendingInvite = NPI_TargetName
+    StaticPopup_Show("NPI_CONFIRM_INVITE", NPI_TargetName, nil, {name = NPI_TargetName})
 end
 
-local function NPI_IsPlayerInGroup(NPI_TargetName)
+local function NPI_IsGroupFull()
+    local NPI_GroupSize = GetNumGroupMembers()
+    if NPI_GroupSize == 0 then NPI_GroupSize = 1 end
+    return NPI_GroupSize >= 5
+end
+
+function NPI_IsPlayerInGroup(NPI_TargetName)
     if not IsInGroup() then return false end
 
     local NPI_Count = GetNumGroupMembers()
@@ -77,6 +85,13 @@ function NPI_Addon:Enable()
     if not self.enabled then
         self.enabled = true
         NPI_Frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        if NPI_Settings.triggerMouseover then
+            NPI_Frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+        end
+        if NPI_Settings.triggerTarget then
+            NPI_Frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+        end
+        NPI_Frame:RegisterEvent("CHAT_MSG_SYSTEM")
         if self.minimapButton and self.minimapButton.icon then
             self.minimapButton.icon:SetDesaturated(false)
         end
@@ -90,6 +105,9 @@ function NPI_Addon:Disable()
     if self.enabled then
         self.enabled = false
         NPI_Frame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        NPI_Frame:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
+        NPI_Frame:UnregisterEvent("PLAYER_TARGET_CHANGED")
+        NPI_Frame:UnregisterEvent("CHAT_MSG_SYSTEM")
         if self.minimapButton and self.minimapButton.icon then
             self.minimapButton.icon:SetDesaturated(true)
         end
@@ -119,7 +137,15 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
         NPI_Addon.invited[data.name] = true
         DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Invited " .. data.name .. ".")
         if NPI_Settings.whisperEnabled and NPI_Settings.whisperMessage ~= "" then
-            SendChatMessage("NearbyPartyInvite: " .. NPI_Settings.whisperMessage, "WHISPER", nil, data.name)
+            NPI_PendingWhisper = data.name
+            C_Timer.After(1, function()
+                if NPI_PendingWhisper == data.name then
+                    SendChatMessage("NearbyPartyInvite: " .. NPI_Settings.whisperMessage, "WHISPER", nil, data.name)
+                    NPI_PendingWhisper = nil
+                end
+            end)
+        else
+            NPI_PendingWhisper = nil
         end
         NPI_PendingInvite = nil
     end,
@@ -143,27 +169,67 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
 local NPI_bitBand = bit.band
 function NPI_Frame:COMBAT_LOG_EVENT_UNFILTERED()
     if not NPI_Addon.enabled or NPI_PendingInvite then return end
+    if NPI_IsGroupFull() then
+        if not NPI_GroupFullWarned then
+            DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Group is full. No invitations sent.")
+            NPI_GroupFullWarned = true
+        end
+        return
+    else
+        NPI_GroupFullWarned = false
+    end
 
     local _, _, _, NPI_SourceGUID, NPI_SourceName, NPI_SourceFlags = CombatLogGetCurrentEventInfo()
     if not NPI_SourceName or NPI_SourceName == NPI_PlayerFullName then return end
 
     if NPI_bitBand(NPI_SourceFlags, COMBATLOG_OBJECT_TYPE_PLAYER) == 0 then return end
-    if NPI_Addon.invited[NPI_SourceName] or NPI_Addon.ignored[NPI_SourceName] then return end
-    if NPI_IsPlayerInGroup(NPI_SourceName) then return end
+    if NPI_bitBand(NPI_SourceFlags, COMBATLOG_OBJECT_REACTION_FRIENDLY) == 0 then return end
 
-    local NPI_GroupSize = GetNumGroupMembers()
-    if NPI_GroupSize == 0 then NPI_GroupSize = 1 end
-    if NPI_GroupSize >= 5 then
-        DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Group is full. No invitations sent.")
+    NPI_StartInvite(NPI_SourceName)
+end
+
+local function NPI_CheckUnit(NPI_Unit)
+    if not UnitExists(NPI_Unit) or not UnitIsPlayer(NPI_Unit) then return end
+    local NPI_Name, NPI_Realm = UnitName(NPI_Unit)
+    local NPI_FullName = NPI_Realm and NPI_Realm ~= "" and NPI_Name .. "-" .. NPI_Realm or NPI_Name
+    if NPI_FullName == NPI_PlayerFullName then return end
+    if UnitFactionGroup(NPI_Unit) ~= NPI_PlayerFaction then return end
+    NPI_StartInvite(NPI_FullName)
+end
+
+function NPI_Frame:UPDATE_MOUSEOVER_UNIT()
+    if not NPI_Addon.enabled or NPI_PendingInvite then return end
+    if NPI_IsGroupFull() then
+        if not NPI_GroupFullWarned then
+            DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Group is full. No invitations sent.")
+            NPI_GroupFullWarned = true
+        end
         return
+    else
+        NPI_GroupFullWarned = false
     end
+    NPI_CheckUnit("mouseover")
+end
 
-    local NPI_Unit = NPI_FindUnitByName(NPI_SourceName)
-    if not NPI_Unit or not UnitIsFriend("player", NPI_Unit) then return end
-    if not CheckInteractDistance(NPI_Unit, 1) then return end
+function NPI_Frame:PLAYER_TARGET_CHANGED()
+    if not NPI_Addon.enabled or NPI_PendingInvite then return end
+    if NPI_IsGroupFull() then
+        if not NPI_GroupFullWarned then
+            DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Group is full. No invitations sent.")
+            NPI_GroupFullWarned = true
+        end
+        return
+    else
+        NPI_GroupFullWarned = false
+    end
+    NPI_CheckUnit("target")
+end
 
-    NPI_PendingInvite = NPI_SourceName
-    StaticPopup_Show("NPI_CONFIRM_INVITE", NPI_SourceName, nil, {name = NPI_SourceName})
+function NPI_Frame:CHAT_MSG_SYSTEM(msg)
+    -- ERR_ALREADY_IN_GROUP_S is a localized global provided by the WoW client
+    if NPI_PendingWhisper and msg == ERR_ALREADY_IN_GROUP_S:format(NPI_PendingWhisper) then
+        NPI_PendingWhisper = nil
+    end
 end
 
 NPI_Frame:SetScript("OnEvent", function(self, event, ...)
@@ -269,11 +335,44 @@ NPI_WhisperCheck:SetScript("OnClick", function(self)
 end)
 
 NPI_UpdateMessageInput()
+
+NPI_MouseoverCheck = CreateFrame("CheckButton", "NPI_MouseoverCheck", NPI_Options, "InterfaceOptionsCheckButtonTemplate")
+NPI_MouseoverCheck:SetPoint("TOPLEFT", NPI_MessageInput, "BOTTOMLEFT", -30, -8)
+NPI_MouseoverCheck.Text:SetText("Scan on mouseover")
+NPI_MouseoverCheck:SetChecked(NPI_Settings.triggerMouseover)
+NPI_MouseoverCheck:SetScript("OnClick", function(self)
+    NPI_Settings.triggerMouseover = self:GetChecked()
+    if NPI_Addon.enabled then
+        if self:GetChecked() then
+            NPI_Frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+        else
+            NPI_Frame:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
+        end
+    end
+end)
+
+NPI_TargetCheck = CreateFrame("CheckButton", "NPI_TargetCheck", NPI_Options, "InterfaceOptionsCheckButtonTemplate")
+NPI_TargetCheck:SetPoint("TOPLEFT", NPI_MouseoverCheck, "BOTTOMLEFT", 0, -8)
+NPI_TargetCheck.Text:SetText("Scan on target change")
+NPI_TargetCheck:SetChecked(NPI_Settings.triggerTarget)
+NPI_TargetCheck:SetScript("OnClick", function(self)
+    NPI_Settings.triggerTarget = self:GetChecked()
+    if NPI_Addon.enabled then
+        if self:GetChecked() then
+            NPI_Frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+        else
+            NPI_Frame:UnregisterEvent("PLAYER_TARGET_CHANGED")
+        end
+    end
+end)
+
 NPI_Options:HookScript("OnShow", function()
     NPI_EnableCheck:SetChecked(NPI_Addon.enabled)
     NPI_WhisperCheck:SetChecked(NPI_Settings.whisperEnabled)
     NPI_MessageInput:SetText(NPI_Settings.whisperMessage)
     NPI_UpdateMessageInput()
+    NPI_MouseoverCheck:SetChecked(NPI_Settings.triggerMouseover)
+    NPI_TargetCheck:SetChecked(NPI_Settings.triggerTarget)
 end)
 if Settings and Settings.RegisterAddOnCategory then
     NPI_SettingsCategory = Settings.RegisterCanvasLayoutCategory(NPI_Options, NPI_Options.name)

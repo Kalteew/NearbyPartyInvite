@@ -21,6 +21,7 @@ local EPI_PlayerFullName = EPI_PlayerRealm and EPI_PlayerRealm ~= "" and EPI_Pla
 
 -- Forward declarations for options panel and category
 local EPI_Options, EPI_SettingsCategory
+local EPI_EnableCheck, EPI_WhisperCheck, EPI_MessageInput
 
 -- Utility: find a unitID by player name
 local function EPI_FindUnitByName(EPI_TargetName)
@@ -79,6 +80,9 @@ function EPI_Addon:Enable()
         if self.minimapButton and self.minimapButton.icon then
             self.minimapButton.icon:SetDesaturated(false)
         end
+        if EPI_EnableCheck then
+            EPI_EnableCheck:SetChecked(true)
+        end
     end
 end
 
@@ -88,6 +92,9 @@ function EPI_Addon:Disable()
         EPI_Frame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
         if self.minimapButton and self.minimapButton.icon then
             self.minimapButton.icon:SetDesaturated(true)
+        end
+        if EPI_EnableCheck then
+            EPI_EnableCheck:SetChecked(false)
         end
     end
 end
@@ -209,12 +216,24 @@ end)
 EPI_Options = CreateFrame("Frame", "EPI_Options")
 EPI_Options.name = "EasyPartyInvite"
 
-local EPI_WhisperCheck = CreateFrame("CheckButton", "EPI_WhisperCheck", EPI_Options, "InterfaceOptionsCheckButtonTemplate")
-EPI_WhisperCheck:SetPoint("TOPLEFT", 16, -16)
+EPI_EnableCheck = CreateFrame("CheckButton", "EPI_EnableCheck", EPI_Options, "InterfaceOptionsCheckButtonTemplate")
+EPI_EnableCheck:SetPoint("TOPLEFT", 16, -16)
+EPI_EnableCheck.Text:SetText("Enable auto-invite")
+EPI_EnableCheck:SetChecked(EPI_Addon.enabled)
+EPI_EnableCheck:SetScript("OnClick", function(self)
+    if self:GetChecked() then
+        EPI_Addon:Enable()
+    else
+        EPI_Addon:Disable()
+    end
+end)
+
+EPI_WhisperCheck = CreateFrame("CheckButton", "EPI_WhisperCheck", EPI_Options, "InterfaceOptionsCheckButtonTemplate")
+EPI_WhisperCheck:SetPoint("TOPLEFT", EPI_EnableCheck, "BOTTOMLEFT", 0, -8)
 EPI_WhisperCheck.Text:SetText("Enable whisper message")
 EPI_WhisperCheck:SetChecked(EPI_Settings.whisperEnabled)
 
-local EPI_MessageInput = CreateFrame("EditBox", "EPI_MessageInput", EPI_Options, "InputBoxTemplate")
+EPI_MessageInput = CreateFrame("EditBox", "EPI_MessageInput", EPI_Options, "InputBoxTemplate")
 EPI_MessageInput:SetSize(220, 25)
 EPI_MessageInput:SetAutoFocus(false)
 EPI_MessageInput:SetPoint("TOPLEFT", EPI_WhisperCheck, "BOTTOMLEFT", 30, -8)
@@ -244,6 +263,12 @@ EPI_WhisperCheck:SetScript("OnClick", function(self)
 end)
 
 EPI_UpdateMessageInput()
+EPI_Options:HookScript("OnShow", function()
+    EPI_EnableCheck:SetChecked(EPI_Addon.enabled)
+    EPI_WhisperCheck:SetChecked(EPI_Settings.whisperEnabled)
+    EPI_MessageInput:SetText(EPI_Settings.whisperMessage)
+    EPI_UpdateMessageInput()
+end)
 if Settings and Settings.RegisterAddOnCategory then
     EPI_SettingsCategory = Settings.RegisterCanvasLayoutCategory(EPI_Options, EPI_Options.name)
     EPI_SettingsCategory.ID = EPI_Options.name

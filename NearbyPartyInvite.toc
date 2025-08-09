@@ -1,7 +1,8 @@
-## Interface: 50000
+## Interface: 50500
 ## Title: NearbyPartyInvite
 ## Notes: Prompt to invite nearby friendly players based on combat log
 ## Author: Yaya RJB
 ## Version: 0.1.0
+## X-Curse-Project-ID: 1318926
 ## SavedVariables: NPI_Settings
 NearbyPartyInvite.lua

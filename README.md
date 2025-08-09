@@ -1,15 +1,52 @@
 # NearbyPartyInvite
 
-NearbyPartyInvite is a lightweight World of Warcraft addon for Mists of Pandaria Classic that helps you quickly invite players of your faction that you encounter through combat, targeting, or mouseover.
+**NearbyPartyInvite** is a lightweight World of Warcraft addon for Mists of Pandaria Classic that helps you quickly invite nearby friendly players to your party.
 
-## Installation
-Install through [CurseForge](https://www.curseforge.com/wow/addons/nearby-party-invite) using your preferred addon manager. For manual installation, copy the `NearbyPartyInvite` folder into your World of Warcraft `Interface/AddOns` directory and restart the game.
+---
+
+## Features
+
+- Automatically detects nearby players of your faction through combat, targeting, or mouseover and prompts an invitation
+- Toggle auto-invite via the minimap button or `/npi` slash commands
+- Optional custom whisper message after sending an invite
+- Low memory usage
+
+---
 
 ## Usage
-- Click the minimap button or type `/npi toggle` to enable or disable auto-invite mode.
-- Right-click the minimap button to open the addon settings.
-- Use `/npi status` to check whether auto-invite mode is currently enabled.
-- Enable a custom whisper in the addon options or set it with `/npi message <text>`. The message will be sent as `NearbyPartyInvite: <text>` after an invitation is sent unless the player is already in a group.
-- In the addon settings, toggle whether scanning occurs on mouseover and target changes.
 
+Enable auto-invite mode with the minimap button or `/npi toggle`. When active, the addon listens for friendly players you encounter and offers to invite them. Use `/npi status` to check the current state, `/npi message <text>` to set a custom whisper, and right-click the minimap button to adjust options like scanning on mouseover or target changes.
+
+---
+
+## Data Storage
+
+- Uses per-account saved variables (`NPI_Settings`)
+- Stores auto-invite preferences and whisper message
+- Updates automatically during normal gameplay
+
+---
+
+## Limitations
+
+- Only invites players from your faction
+- Requires available party slots (maximum five players)
+- Players must be encountered through combat, mouseover, or target changes to be detected
+
+---
+
+## Support
+
+Found a bug or have a suggestion?  
+Open an issue here: [GitHub - Kalteew/NearbyPartyInvite](https://github.com/Kalteew/NearbyPartyInvite)
+
+---
+
+## License
+
+This addon is open-source under the MIT License.
+
+---
+
+Thank you for using NearbyPartyInvite!
 

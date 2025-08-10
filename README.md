@@ -17,8 +17,7 @@
 
 ## Usage
 
-Enable auto-invite mode with the minimap button or `/npi toggle`. When active, the addon listens for friendly players you encounter and offers to invite them. Use `/npi status` to check the current state, `/npi message <text>` to set a custom whisper, and right-click the minimap button to adjust options like scanning on mouseover or target changes.
-Use `/npi verbosity <level>` to control chat output verbosity.
+Enable auto-invite mode with the minimap button or `/npi toggle`. When active, the addon listens for friendly players you encounter and offers to invite them. Use `/npi status` to check the current state and `/npi message <text>` to set a custom whisper. Open the interface options to adjust settings like scanning on mouseover or target changes. Use `/npi verbosity <level>` to control chat output verbosity.
 
 ---
 

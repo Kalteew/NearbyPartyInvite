@@ -22,6 +22,16 @@ end
 if NPI_Settings.triggerTarget == nil then
     NPI_Settings.triggerTarget = true
 end
+local NPI_Verbosity = { none = 0, default = 1, high = 2, debug = 3 }
+local NPI_VerbosityNames = { [0] = "none", [1] = "default", [2] = "high", [3] = "debug" }
+if not NPI_Settings.verbosity then
+    NPI_Settings.verbosity = NPI_Verbosity.default
+end
+local function NPI_Print(level, msg)
+    if NPI_Settings.verbosity >= level then
+        DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: " .. msg)
+    end
+end
 local NPI_PendingInvite = nil
 local NPI_PlayerName, NPI_PlayerRealm = UnitName("player")
 local NPI_PlayerFullName = NPI_PlayerRealm and NPI_PlayerRealm ~= "" and NPI_PlayerName .. "-" .. NPI_PlayerRealm or NPI_PlayerName
@@ -37,9 +47,16 @@ local NPI_IsPlayerInGroup
 --
 -- Attempt to invite a player by name after basic checks
 local function NPI_StartInvite(NPI_TargetName)
-    if NPI_Addon.invited[NPI_TargetName] or NPI_Addon.ignored[NPI_TargetName] then return end
-    if NPI_IsPlayerInGroup(NPI_TargetName) then return end
+    if NPI_Addon.invited[NPI_TargetName] or NPI_Addon.ignored[NPI_TargetName] then
+        NPI_Print(NPI_Verbosity.debug, "Skipping " .. NPI_TargetName .. " (already processed)")
+        return
+    end
+    if NPI_IsPlayerInGroup(NPI_TargetName) then
+        NPI_Print(NPI_Verbosity.debug, NPI_TargetName .. " already in group")
+        return
+    end
 
+    NPI_Print(NPI_Verbosity.high, "Prompting invite for " .. NPI_TargetName)
     NPI_PendingInvite = NPI_TargetName
     StaticPopup_Show("NPI_CONFIRM_INVITE", NPI_TargetName, nil, {name = NPI_TargetName})
 end
@@ -60,6 +77,7 @@ local function NPI_IsGroupFull()
     local NPI_GroupSize = GetNumGroupMembers()
     if NPI_GroupSize == 0 then NPI_GroupSize = 1 end
     NPI_GroupSize = NPI_GroupSize + NPI_GetPendingInviteCount()
+    NPI_Print(NPI_Verbosity.debug, "Group size with pending: " .. NPI_GroupSize)
     return NPI_GroupSize >= 5
 end
 
@@ -139,7 +157,7 @@ function NPI_Addon:Toggle()
     else
         self:Enable()
     end
-    DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Auto-invite " .. (self.enabled and "enabled" or "disabled") .. ".")
+    NPI_Print(NPI_Verbosity.default, "Auto-invite " .. (self.enabled and "enabled" or "disabled") .. ".")
 end
 
 -- Confirmation popup
@@ -157,7 +175,7 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
                   NPI_Addon.pendingInvites[data.name] = nil
               end
           end)
-          DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Invited " .. data.name .. ".")
+          NPI_Print(NPI_Verbosity.default, "Invited " .. data.name .. ".")
           if NPI_Settings.whisperEnabled and NPI_Settings.whisperMessage ~= "" then
               NPI_PendingWhisper = data.name
               C_Timer.After(1, function()
@@ -173,12 +191,12 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
       end,
     OnCancel = function(_, data)
         NPI_Addon.ignored[data.name] = true
-        DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Ignored " .. data.name .. ".")
+        NPI_Print(NPI_Verbosity.default, "Ignored " .. data.name .. ".")
       NPI_PendingInvite = nil
   end,
     OnAlt = function()
         NPI_Addon:Disable()
-        DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Auto-invite disabled.")
+        NPI_Print(NPI_Verbosity.default, "Auto-invite disabled.")
         NPI_PendingInvite = nil
     end,
     timeout = 0,
@@ -193,7 +211,7 @@ function NPI_Frame:COMBAT_LOG_EVENT_UNFILTERED()
     if not NPI_Addon.enabled or NPI_PendingInvite then return end
     if NPI_IsGroupFull() then
         if not NPI_GroupFullWarned then
-            DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Group is full. No invitations sent.")
+            NPI_Print(NPI_Verbosity.default, "Group is full. No invitations sent.")
             NPI_GroupFullWarned = true
         end
         return
@@ -207,15 +225,18 @@ function NPI_Frame:COMBAT_LOG_EVENT_UNFILTERED()
     if NPI_bitBand(NPI_SourceFlags, COMBATLOG_OBJECT_TYPE_PLAYER) == 0 then return end
     if NPI_bitBand(NPI_SourceFlags, COMBATLOG_OBJECT_REACTION_FRIENDLY) == 0 then return end
 
+    NPI_Print(NPI_Verbosity.debug, "Combat log event from " .. NPI_SourceName)
     NPI_StartInvite(NPI_SourceName)
 end
 
 local function NPI_CheckUnit(NPI_Unit)
+    NPI_Print(NPI_Verbosity.debug, "Checking unit " .. NPI_Unit)
     if not UnitExists(NPI_Unit) or not UnitIsPlayer(NPI_Unit) then return end
     local NPI_Name, NPI_Realm = UnitName(NPI_Unit)
     local NPI_FullName = NPI_Realm and NPI_Realm ~= "" and NPI_Name .. "-" .. NPI_Realm or NPI_Name
     if NPI_FullName == NPI_PlayerFullName then return end
     if UnitFactionGroup(NPI_Unit) ~= NPI_PlayerFaction then return end
+    NPI_Print(NPI_Verbosity.high, "Detected " .. NPI_FullName)
     NPI_StartInvite(NPI_FullName)
 end
 
@@ -223,7 +244,7 @@ function NPI_Frame:UPDATE_MOUSEOVER_UNIT()
     if not NPI_Addon.enabled or NPI_PendingInvite then return end
     if NPI_IsGroupFull() then
         if not NPI_GroupFullWarned then
-            DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Group is full. No invitations sent.")
+            NPI_Print(NPI_Verbosity.default, "Group is full. No invitations sent.")
             NPI_GroupFullWarned = true
         end
         return
@@ -237,7 +258,7 @@ function NPI_Frame:PLAYER_TARGET_CHANGED()
     if not NPI_Addon.enabled or NPI_PendingInvite then return end
     if NPI_IsGroupFull() then
         if not NPI_GroupFullWarned then
-            DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Group is full. No invitations sent.")
+            NPI_Print(NPI_Verbosity.default, "Group is full. No invitations sent.")
             NPI_GroupFullWarned = true
         end
         return
@@ -402,6 +423,53 @@ NPI_TargetCheck:SetScript("OnClick", function(self)
     end
 end)
 
+local NPI_VerbosityDropDown = CreateFrame("Frame", "NPI_VerbosityDropDown", NPI_Options, "UIDropDownMenuTemplate")
+NPI_VerbosityDropDown:SetPoint("TOPLEFT", NPI_TargetCheck, "BOTTOMLEFT", -16, -16)
+UIDropDownMenu_SetWidth(NPI_VerbosityDropDown, 120)
+UIDropDownMenu_SetText(NPI_VerbosityDropDown, "Verbosity")
+
+local function NPI_VerbosityDropDown_OnClick(self)
+    UIDropDownMenu_SetSelectedValue(NPI_VerbosityDropDown, self.value)
+    NPI_Settings.verbosity = self.value
+end
+
+local function NPI_VerbosityDropDown_Initialize()
+    local info = UIDropDownMenu_CreateInfo()
+    info.func = NPI_VerbosityDropDown_OnClick
+
+    info.text = "None"
+    info.value = NPI_Verbosity.none
+    info.checked = (NPI_Settings.verbosity == NPI_Verbosity.none)
+    UIDropDownMenu_AddButton(info)
+
+    info = UIDropDownMenu_CreateInfo()
+    info.func = NPI_VerbosityDropDown_OnClick
+    info.text = "Default"
+    info.value = NPI_Verbosity.default
+    info.checked = (NPI_Settings.verbosity == NPI_Verbosity.default)
+    UIDropDownMenu_AddButton(info)
+
+    info = UIDropDownMenu_CreateInfo()
+    info.func = NPI_VerbosityDropDown_OnClick
+    info.text = "High"
+    info.value = NPI_Verbosity.high
+    info.checked = (NPI_Settings.verbosity == NPI_Verbosity.high)
+    UIDropDownMenu_AddButton(info)
+
+    info = UIDropDownMenu_CreateInfo()
+    info.func = NPI_VerbosityDropDown_OnClick
+    info.text = "Debug"
+    info.value = NPI_Verbosity.debug
+    info.checked = (NPI_Settings.verbosity == NPI_Verbosity.debug)
+    UIDropDownMenu_AddButton(info)
+end
+
+UIDropDownMenu_Initialize(NPI_VerbosityDropDown, NPI_VerbosityDropDown_Initialize)
+UIDropDownMenu_SetSelectedValue(NPI_VerbosityDropDown, NPI_Settings.verbosity)
+local NPI_VerbosityLabel = NPI_Options:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+NPI_VerbosityLabel:SetPoint("BOTTOMLEFT", NPI_VerbosityDropDown, "TOPLEFT", 16, 3)
+NPI_VerbosityLabel:SetText("Verbosity")
+
 NPI_Options:HookScript("OnShow", function()
     NPI_EnableCheck:SetChecked(NPI_Addon.enabled)
     NPI_WhisperCheck:SetChecked(NPI_Settings.whisperEnabled)
@@ -409,6 +477,8 @@ NPI_Options:HookScript("OnShow", function()
     NPI_UpdateMessageInput()
     NPI_MouseoverCheck:SetChecked(NPI_Settings.triggerMouseover)
     NPI_TargetCheck:SetChecked(NPI_Settings.triggerTarget)
+    UIDropDownMenu_SetSelectedValue(NPI_VerbosityDropDown, NPI_Settings.verbosity)
+    UIDropDownMenu_SetText(NPI_VerbosityDropDown, string.gsub(NPI_VerbosityNames[NPI_Settings.verbosity], "^%l", string.upper))
 end)
 if Settings and Settings.RegisterAddOnCategory then
     NPI_SettingsCategory = Settings.RegisterCanvasLayoutCategory(NPI_Options, NPI_Options.name)
@@ -426,21 +496,33 @@ SlashCmdList["NPI"] = function(NPI_Command)
     if NPI_Cmd == "toggle" then
         NPI_Addon:Toggle()
     elseif NPI_Cmd == "status" then
-        DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Auto-invite is " .. (NPI_Addon.enabled and "enabled" or "disabled") .. ".")
+        NPI_Print(NPI_Verbosity.default, "Auto-invite is " .. (NPI_Addon.enabled and "enabled" or "disabled") .. ".")
     elseif NPI_Cmd == "message" then
         if NPI_Rest == "" then
             if NPI_Settings.whisperEnabled and NPI_Settings.whisperMessage ~= "" then
-                DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Current whisper message: " .. NPI_Settings.whisperMessage)
+                NPI_Print(NPI_Verbosity.default, "Current whisper message: " .. NPI_Settings.whisperMessage)
             else
-                DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: No whisper message set.")
+                NPI_Print(NPI_Verbosity.default, "No whisper message set.")
             end
         else
             NPI_Settings.whisperMessage = NPI_Rest
             NPI_Settings.whisperEnabled = true
-            DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: Whisper message set to '" .. NPI_Rest .. "'.")
+            NPI_Print(NPI_Verbosity.default, "Whisper message set to '" .. NPI_Rest .. "'.")
+        end
+    elseif NPI_Cmd == "verbosity" then
+        if NPI_Rest == "" then
+            NPI_Print(NPI_Verbosity.default, "Current verbosity: " .. NPI_VerbosityNames[NPI_Settings.verbosity])
+        else
+            local level = string.lower(NPI_Rest)
+            if NPI_Verbosity[level] then
+                NPI_Settings.verbosity = NPI_Verbosity[level]
+                NPI_Print(NPI_Verbosity.default, "Verbosity set to " .. level .. ".")
+            else
+                NPI_Print(NPI_Verbosity.default, "Invalid verbosity level. Use: none, default, high, debug.")
+            end
         end
     else
-        DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite commands: /npi toggle, /npi status, /npi message <text>")
+        NPI_Print(NPI_Verbosity.default, "NearbyPartyInvite commands: /npi toggle, /npi status, /npi message <text>, /npi verbosity <level>")
     end
 end
 

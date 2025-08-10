@@ -11,12 +11,14 @@
 - Optional custom whisper message after sending an invite
 - Prevents overfilling parties by considering pending invitations before sending new ones
 - Low memory usage
+- Adjustable verbosity levels (none, default, high, debug)
 
 ---
 
 ## Usage
 
 Enable auto-invite mode with the minimap button or `/npi toggle`. When active, the addon listens for friendly players you encounter and offers to invite them. Use `/npi status` to check the current state, `/npi message <text>` to set a custom whisper, and right-click the minimap button to adjust options like scanning on mouseover or target changes.
+Use `/npi verbosity <level>` to control chat output verbosity.
 
 ---
 

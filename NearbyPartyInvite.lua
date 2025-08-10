@@ -318,13 +318,7 @@ NPI_MinimapIcon:SetPoint("CENTER")
 NPI_MinimapIcon:SetDesaturated(true)
 
 NPI_MinimapButton:SetScript("OnClick", function(_, button)
-    if button == "RightButton" then
-        if Settings and Settings.OpenToCategory then
-            Settings.OpenToCategory(NPI_SettingsCategory and NPI_SettingsCategory.ID or "NearbyPartyInvite")
-        elseif InterfaceOptionsFrame_OpenToCategory then
-            InterfaceOptionsFrame_OpenToCategory(NPI_Options)
-        end
-    else
+    if button == "LeftButton" then
         NPI_Addon:Toggle()
     end
 end)
@@ -333,7 +327,6 @@ NPI_MinimapButton:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText("NearbyPartyInvite")
     GameTooltip:AddLine("Left-click to toggle auto-invite mode", 1, 1, 1)
-    GameTooltip:AddLine("Right-click to open settings", 1, 1, 1)
     GameTooltip:Show()
 end)
 

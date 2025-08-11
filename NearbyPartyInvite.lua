@@ -24,10 +24,16 @@ if NPI_Settings.triggerTarget == nil then
 end
 local NPI_Verbosity = { none = 0, default = 1, high = 2, debug = 3 }
 local NPI_VerbosityNames = { [0] = "none", [1] = "default", [2] = "high", [3] = "debug" }
-if not NPI_Settings.verbosity then
+if NPI_Settings.verbosity == nil then
     NPI_Settings.verbosity = NPI_Verbosity.default
 end
 local function NPI_Print(level, msg)
+    if type(level) ~= "number" then
+        level = NPI_Verbosity.default
+    end
+    if type(NPI_Settings.verbosity) ~= "number" then
+        NPI_Settings.verbosity = NPI_Verbosity.default
+    end
     if NPI_Settings.verbosity >= level then
         DEFAULT_CHAT_FRAME:AddMessage("NearbyPartyInvite: " .. msg)
     end

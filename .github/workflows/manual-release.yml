@@ -64,7 +64,7 @@ jobs:
       - name: Package and upload
         uses: BigWigsMods/packager@v2
         with:
-          args: -p 1318926
+          args: -p 1324134
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -79,4 +79,3 @@ jobs:
           files: .release/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

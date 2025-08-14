@@ -21,6 +21,24 @@ Enable auto-invite mode with the minimap button or `/npi toggle`. When active, t
 
 ---
 
+## Supported Languages
+
+NearbyPartyInvite is localized in the following languages:
+
+- English (US/GB)
+- French
+- German
+- Spanish (Spain)
+- Spanish (Mexico)
+- Italian
+- Portuguese (Brazil)
+- Russian
+- Korean
+- Chinese (Simplified)
+- Chinese (Traditional)
+
+---
+
 ## Data Storage
 
 - Uses per-account saved variables (`NPI_Settings`)

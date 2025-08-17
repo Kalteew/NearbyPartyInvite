@@ -330,7 +330,7 @@ NPI_MinimapOverlay:SetPoint("TOPLEFT")
 
 local NPI_MinimapIcon = NPI_MinimapButton:CreateTexture(nil, "BACKGROUND")
 NPI_MinimapButton.icon = NPI_MinimapIcon
-NPI_MinimapIcon:SetTexture("Interface\\Icons\\Ability_EyeOfTheOwl")
+NPI_MinimapIcon:SetTexture("Interface\\AddOns\\NearbyPartyInvite\\NearbyPartyInvite_icon")
 NPI_MinimapIcon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
 NPI_MinimapIcon:SetSize(20, 20)
 NPI_MinimapIcon:SetPoint("CENTER")

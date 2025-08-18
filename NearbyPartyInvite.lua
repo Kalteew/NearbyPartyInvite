@@ -199,7 +199,7 @@ StaticPopupDialogs["NPI_CONFIRM_INVITE"] = {
               NPI_PendingWhisper = data.name
               C_Timer.After(1, function()
                   if NPI_PendingWhisper == data.name then
-                    SendChatMessage(L.ADDON_TITLE .. ": " .. NPI_Settings.whisperMessage, "WHISPER", nil, data.name)
+                    SendChatMessage(NPI_Settings.whisperMessage, "WHISPER", nil, data.name)
                     NPI_PendingWhisper = nil
                 end
             end)
